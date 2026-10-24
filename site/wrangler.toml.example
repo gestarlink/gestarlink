@@ -1,0 +1,13 @@
+name = "gestarlink"
+compatibility_date = "2026-10-24"
+pages_build_output_dir = "./public"
+
+# After creating a new D1 database in Cloudflare:
+[[d1_databases]]
+binding = "DB"
+database_name = "gestarlink-crm"
+database_id = "FILL_CLOUDFLARE_D1_DATABASE_ID"
+
+# Optional Cloudflare Workers AI binding:
+[ai]
+binding = "AI"

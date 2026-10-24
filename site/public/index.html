@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#070910">
+  <meta name="description" content="GestarLink: desenvolvimento de sites, aplicativos web, SaaS, automações e integrações com escopo claro. Atendemos negócios no Brasil e no exterior.">
+  <meta name="robots" content="index,follow">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="GestarLink">
+  <meta property="og:title" content="GestarLink | Sites, sistemas e automações">
+  <meta property="og:description" content="Da ideia à solução digital: sites, apps web e automações para negócios reais.">
+  <meta property="og:url" content="https://gestarlink.com/">
+  <meta name="color-scheme" content="dark">
+  <meta property="og:image" content="https://gestarlink.com/logo.png">
+  <link rel="canonical" href="https://gestarlink.com/">
+  <link rel="icon" type="image/png" href="/logo.png">
+  <title>GestarLink | Sites, sistemas e automações</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./app.js" defer></script>
+</head>
+<body>
+  <a class="skip" href="#main" data-i18n="skip">Pular para o conteúdo</a>
+  <header class="site-header" id="topo">
+    <div class="container nav-wrap">
+      <a class="brand" href="#topo" aria-label="GestarLink — início">
+        <img class="brand-mark" src="/logo.png" alt="GestarLink" width="45" height="45">
+        <span class="brand-name">Gestar<span>Link</span></span>
+      </a>
+      <nav class="desktop-nav" aria-label="Navegação principal">
+        <a href="#servicos" data-i18n="nav_services">Serviços</a>
+        <a href="#projetos" data-i18n="nav_work">Projetos</a>
+        <a href="#metodo" data-i18n="nav_method">Como trabalhamos</a>
+        <a href="#sobre" data-i18n="nav_about">Sobre</a>
+      </nav>
+      <div class="nav-actions">
+        <div class="lang-group" role="group" aria-label="Language">
+          <button type="button" class="lang-btn active" data-lang="pt" aria-pressed="true">PT</button>
+          <button type="button" class="lang-btn" data-lang="en" aria-pressed="false">EN</button>
+          <button type="button" class="lang-btn" data-lang="es" aria-pressed="false">ES</button>
+        </div>
+        <a href="#contato" class="btn btn-primary btn-header" data-i18n="nav_cta">Pedir orçamento <span aria-hidden="true">↗</span></a>
+        <button id="menu-toggle" class="mobile-toggle" type="button" aria-expanded="false" aria-controls="mobile-menu" aria-label="Abrir menu"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+    <nav id="mobile-menu" class="mobile-menu" aria-label="Navegação para celular" hidden>
+      <a href="#servicos" data-i18n="nav_services">Serviços</a><a href="#projetos" data-i18n="nav_work">Projetos</a><a href="#metodo" data-i18n="nav_method">Como trabalhamos</a><a href="#sobre" data-i18n="nav_about">Sobre</a><a href="#contato" data-i18n="nav_cta">Pedir orçamento</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero section-shell" aria-labelledby="hero-title">
+      <div class="halo halo-1"></div><div class="halo halo-2"></div>
+      <div class="container hero-layout">
+        <div class="hero-copy">
+          <div class="eyebrow"><span class="pulse-dot"></span><span data-i18n="hero_overline">DESENVOLVIMENTO DIGITAL · ATENDIMENTO GLOBAL</span></div>
+          <h1 id="hero-title" data-i18n-html="hero_title">Sua ideia merece <em>virar uma solução real.</em></h1>
+          <p class="hero-text" data-i18n="hero_desc">Criamos sites, aplicativos web, sistemas e automações sob medida. Da primeira conversa ao protótipo, com escopo claro e entregas objetivas.</p>
+          <div class="hero-buttons"><a href="#servicos" class="btn btn-primary" data-i18n="hero_cta1">Ver serviços e valores <span aria-hidden="true">↗</span></a><a href="#projetos" class="btn btn-ghost" data-i18n="hero_cta2">Explorar projetos <span aria-hidden="true">→</span></a></div>
+          <div class="hero-points"><span><i class="dot-check">✓</i><span data-i18n="hero_point1">Escopo definido</span></span><span><i class="dot-check">✓</i><span data-i18n="hero_point2">Protótipo antes da entrega</span></span><span><i class="dot-check">✓</i><span data-i18n="hero_point3">Brasil e exterior</span></span></div>
+        </div>
+        <div class="hero-graphic" aria-label="Ilustração do processo de criação digital">
+          <div class="mesh-grid"></div>
+          <div class="graphic-head"><span class="window-dots"><b></b><b></b><b></b></span><span>gestarlink / digital.studio</span><span class="live-tag"><span></span>WORKFLOW</span></div>
+          <div class="graphic-content">
+            <p class="tiny-label" data-i18n="graphic_label">DO DESAFIO À ENTREGA</p>
+            <div class="workflow-step"><span class="workflow-num">01</span><div><strong data-i18n="graphic_step1">Entender o problema</strong><small data-i18n="graphic_sub1">Objetivo + escopo</small></div><span class="step-status">✓</span></div>
+            <div class="wire"></div>
+            <div class="workflow-step"><span class="workflow-num">02</span><div><strong data-i18n="graphic_step2">Construir um protótipo</strong><small data-i18n="graphic_sub2">Visualizar e ajustar</small></div><span class="step-status">✓</span></div>
+            <div class="wire"></div>
+            <div class="workflow-step active-step"><span class="workflow-num">03</span><div><strong data-i18n="graphic_step3">Colocar para funcionar</strong><small data-i18n="graphic_sub3">Testar + publicar</small></div><span class="step-spinner"></span></div>
+          </div>
+          <div class="graphic-footer"><span><span class="signal"></span> PROJECT READY</span><span>BUILD / ITERATE / SHIP</span></div>
+          <div class="floating-chip"><span class="chip-square">✦</span><span data-i18n="floating_chip">IA para acelerar, pessoas para decidir.</span></div>
+        </div>
+      </div>
+      <div class="container hero-divider"><span data-i18n="hero_footer">TECNOLOGIA PENSADA PARA PROBLEMAS REAIS</span><span class="stripe"></span><span>WEB / PWA / SAAS / AI</span></div>
+    </section>
+
+    <section class="section section-services" id="servicos" aria-labelledby="services-title">
+      <div class="container">
+        <div class="section-head"><div><p class="kicker" data-i18n="services_kicker">O QUE VOCÊ PODE CONTRATAR</p><h2 id="services-title" data-i18n-html="services_title">Serviços claros.<br><em>Resultados concretos.</em></h2></div><p class="section-intro" data-i18n="services_intro">Comece com uma entrega pequena e evolua conforme a necessidade. Os valores abaixo são referências iniciais em dólar, não orçamentos fechados.</p></div>
+        <div class="services-grid">
+          <article class="service-card"><div class="service-top"><span class="service-icon">↗</span><span class="service-id">01 / QUICK FIX</span></div><h3 data-i18n="service1_title">Ajustes e melhorias</h3><p data-i18n="service1_text">Corrigimos problemas, refinamos layouts, melhoramos páginas e adicionamos funcionalidades pontuais.</p><div class="service-tail"><span class="price"><small data-i18n="from">A partir de</small><strong>US$ 100</strong></span><a href="#contato" class="round-arrow" data-service="fixes" aria-label="Solicitar orçamento de ajustes">↗</a></div></article>
+          <article class="service-card featured"><div class="service-top"><span class="service-icon">▣</span><span class="service-id">02 / WEB</span></div><h3 data-i18n="service2_title">Sites e landing pages</h3><p data-i18n="service2_text">Páginas rápidas, profissionais e responsivas para apresentar seu negócio e captar contatos.</p><div class="service-tail"><span class="price"><small data-i18n="from">A partir de</small><strong>US$ 250</strong></span><a href="#contato" class="round-arrow" data-service="web" aria-label="Solicitar orçamento de sites">↗</a></div></article>
+          <article class="service-card"><div class="service-top"><span class="service-icon">⌘</span><span class="service-id">03 / AUTOMATION</span></div><h3 data-i18n="service3_title">Automações e integrações</h3><p data-i18n="service3_text">Conectamos ferramentas, organizamos processos e reduzimos tarefas manuais com APIs e IA.</p><div class="service-tail"><span class="price"><small data-i18n="from">A partir de</small><strong>US$ 300</strong></span><a href="#contato" class="round-arrow" data-service="automation" aria-label="Solicitar orçamento de automações">↗</a></div></article>
+          <article class="service-card"><div class="service-top"><span class="service-icon">◈</span><span class="service-id">04 / PRODUCT</span></div><h3 data-i18n="service4_title">Apps web e MVPs</h3><p data-i18n="service4_text">Aplicativos PWA, painéis, cadastros e primeiras versões de produtos digitais sob medida.</p><div class="service-tail"><span class="price"><small data-i18n="from">A partir de</small><strong>US$ 600</strong></span><a href="#contato" class="round-arrow" data-service="mvp" aria-label="Solicitar orçamento de aplicativos">↗</a></div></article>
+        </div>
+        <p class="disclaimer" data-i18n="pricing_note">* Valores estimados para projetos de escopo simples. Prazo e preço final dependem dos requisitos e das integrações.</p>
+      </div>
+    </section>
+
+    <section class="section projects-section" id="projetos" aria-labelledby="projects-title">
+      <div class="container">
+        <div class="section-head"><div><p class="kicker" data-i18n="work_kicker">PROJETOS REAIS</p><h2 id="projects-title" data-i18n-html="work_title">Não só ideias.<br><em>Experiência na prática.</em></h2></div><p class="section-intro" data-i18n="work_intro">Da participação cidadã ao comércio digital: exemplos do que já construímos e desenvolvemos.</p></div>
+        <div class="filters" role="group" aria-label="Filtrar projetos"><button class="filter active" data-filter="all" data-i18n="filter_all" aria-pressed="true">Todos</button><button class="filter" data-filter="platform" data-i18n="filter_platform" aria-pressed="false">Plataformas</button><button class="filter" data-filter="commerce" data-i18n="filter_commerce" aria-pressed="false">Comércio</button><button class="filter" data-filter="automation" data-i18n="filter_automation" aria-pressed="false">Automação</button></div>
+        <div class="projects-grid">
+          <article class="project-card" data-category="platform"><div class="project-visual visual-fala"><span class="project-ghost">FALA<br>ACRE</span><div class="project-mini">PARTICIPAÇÃO <span>↗</span></div></div><div class="project-meta">CIVIC TECH <span>•</span> PLATAFORMA</div><h3>Fala Acre</h3><p data-i18n="project_fala">Plataforma de escuta popular, organização de contribuições e relatórios para apoiar decisões.</p><a href="https://falaacre.com/" target="_blank" rel="noopener noreferrer" data-i18n="see_project">Conhecer projeto ↗</a></article>
+          <article class="project-card" data-category="platform"><div class="project-visual visual-wmt"><span class="project-ghost">WMT<br>HQ</span><div class="project-mini">GLOBAL PORTAL <span>↗</span></div></div><div class="project-meta">SPORTS TECH <span>•</span> SAAS</div><h3>WMT HQ</h3><p data-i18n="project_wmt">Portal internacional com módulos para organizações, academias, alunos, eventos e certificados.</p><a href="https://wmt-hq.com/" target="_blank" rel="noopener noreferrer" data-i18n="see_project">Conhecer projeto ↗</a></article>
+          <article class="project-card" data-category="commerce"><div class="project-visual visual-cat"><span class="project-ghost">CATA<br>BLUM!</span><div class="project-mini">DIGITAL COMMERCE <span>↗</span></div></div><div class="project-meta">FOOD TECH <span>•</span> PWA</div><h3>Catablum!</h3><p data-i18n="project_cat">Cardápio web e experiência de pedido digital para uma operação real de confeitaria.</p><a href="https://catablum.gestarlink.com/" target="_blank" rel="noopener noreferrer" data-i18n="see_project">Conhecer projeto ↗</a></article>
+          <article class="project-card" data-category="automation"><div class="project-visual visual-pauta"><span class="project-ghost">ACRE EM<br>PAUTA</span><div class="project-mini">EDITORIAL AI <span>↗</span></div></div><div class="project-meta">MEDIA TECH <span>•</span> IA</div><h3>Acre em Pauta</h3><p data-i18n="project_pauta">Sistema editorial com captação de notícias, análise de relevância, revisão e criação de peças sociais com IA.</p><a href="https://acreempauta.com/" target="_blank" rel="noopener noreferrer" data-i18n="see_project">Conhecer projeto ↗</a></article>
+          <article class="project-card" data-category="platform"><div class="project-visual visual-guia"><span class="project-ghost">GUIA<br>ACRE</span><div class="project-mini">LOCAL DISCOVERY <span>↗</span></div></div><div class="project-meta">LOCAL TECH <span>•</span> DIRETÓRIO</div><h3>GuiaAcre</h3><p data-i18n="project_guia">Diretório digital para descoberta de empresas e serviços locais, com busca e páginas de negócios.</p><a href="https://guiaacre.com/" target="_blank" rel="noopener noreferrer" data-i18n="see_project">Conhecer projeto ↗</a></article>
+          <article class="project-card" data-category="commerce"><div class="project-visual visual-gestar"><span class="project-ghost">GESTAR<br>MÍDIA</span><div class="project-mini">CREATIVE WEB <span>↗</span></div></div><div class="project-meta">BUSINESS <span>•</span> WEB</div><h3>Gestar Mídia</h3><p data-i18n="project_midia">Presença digital e serviços de comunicação e marketing para empresas.</p><a href="https://gestarmidia.com/" target="_blank" rel="noopener noreferrer" data-i18n="see_project">Conhecer projeto ↗</a></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section method-section" id="metodo" aria-labelledby="method-title">
+      <div class="container method-layout">
+        <div class="method-heading"><p class="kicker" data-i18n="method_kicker">NOSSO JEITO DE FAZER</p><h2 id="method-title" data-i18n-html="method_title">Uma boa solução começa <em>com a pergunta certa.</em></h2><p data-i18n="method_intro">Você não precisa chegar com um documento técnico pronto. Conversamos sobre a necessidade, desenhamos a primeira versão e evoluímos juntos.</p><div class="method-note"><span>✦</span><span data-i18n="method_note">Usamos inteligência artificial para acelerar o trabalho, com decisões, validação e testes guiados pelo objetivo do projeto.</span></div></div>
+        <div class="method-steps"><div class="method-step"><b>01</b><div><h3 data-i18n="method1_title">Entendemos o desafio</h3><p data-i18n="method1_text">O que precisa mudar, para quem e com quais limites.</p></div></div><div class="method-step"><b>02</b><div><h3 data-i18n="method2_title">Apresentamos a proposta</h3><p data-i18n="method2_text">Entregáveis, prazo, investimento e o primeiro protótipo quando fizer sentido.</p></div></div><div class="method-step"><b>03</b><div><h3 data-i18n="method3_title">Construímos e refinamos</h3><p data-i18n="method3_text">Iterações rápidas com você acompanhando o resultado.</p></div></div><div class="method-step"><b>04</b><div><h3 data-i18n="method4_title">Testamos e entregamos</h3><p data-i18n="method4_text">Validamos a solução e combinamos os próximos passos.</p></div></div></div>
+      </div>
+    </section>
+
+    <section class="section about-section" id="sobre" aria-labelledby="about-title"><div class="container about-layout"><div><p class="kicker" data-i18n="about_kicker">SOBRE A GESTARLINK</p><h2 id="about-title" data-i18n-html="about_title">Tecnologia com <em>visão de negócio.</em></h2></div><div class="about-copy"><p data-i18n="about_text1">Somos um estúdio independente de soluções digitais baseado no Acre, Brasil, com atuação remota e projetos de diferentes setores.</p><p data-i18n="about_text2">Combinamos planejamento de produto, design, automações e desenvolvimento assistido por IA para transformar necessidades reais em ferramentas digitais úteis.</p><a href="#contato" class="text-arrow" data-i18n="about_link">Vamos conversar sobre seu projeto ↗</a></div></div></section>
+
+    <section class="section faq-section" id="perguntas" aria-labelledby="faq-title"><div class="container faq-layout"><div><p class="kicker" data-i18n="faq_kicker">DÚVIDAS FREQUENTES</p><h2 id="faq-title" data-i18n-html="faq_title">Sem surpresas.<br><em>Sem complicação.</em></h2></div><div class="faq-list"><details><summary data-i18n="faq1_q">Os preços são fixos?</summary><p data-i18n="faq1_a">Não. São valores de referência para serviços simples. Após entender o escopo, enviamos uma proposta com preço, prazo e entregáveis.</p></details><details><summary data-i18n="faq2_q">Atendem empresas de outros países?</summary><p data-i18n="faq2_a">Sim. O trabalho pode ser realizado remotamente. O idioma, os horários e a forma de pagamento são definidos antes do início.</p></details><details><summary data-i18n="faq3_q">Posso começar por um serviço pequeno?</summary><p data-i18n="faq3_a">Sim. Ajustes pontuais, páginas comerciais e pequenas automações são ótimas formas de começar.</p></details><details><summary data-i18n="faq4_q">Vocês trabalham com IA?</summary><p data-i18n="faq4_a">Sim, usamos IA em partes do processo de desenvolvimento quando isso agrega valor. Os requisitos, testes e responsabilidades continuam sendo definidos e acompanhados por pessoas.</p></details></div></div></section>
+
+    <section class="section contact-section" id="contato" aria-labelledby="contact-title">
+      <div class="container contact-layout">
+        <div class="contact-heading">
+          <p class="kicker" data-i18n="contact_kicker">VAMOS CONVERSAR</p>
+          <h2 id="contact-title" data-i18n-html="contact_title">Conte sua ideia.<br><em>A gente ajuda a dar forma.</em></h2>
+          <p data-i18n="contact_desc">Converse com nosso assistente de projetos. Ele ajuda a organizar sua necessidade em poucos minutos, sem compromisso.</p>
+          <div class="contact-availability"><span class="pulse-dot"></span><span data-i18n="contact_remote">Atendimento remoto · Brasil e exterior</span></div>
+          <div class="contact-decoration" aria-hidden="true"><span>YOUR IDEA</span><span class="contact-connector">→</span><span>LET'S BUILD</span></div>
+        </div>
+        <div class="contact-callout"><div class="callout-orb">✦</div><p class="kicker">GESTARLINK ASSISTANT</p><h3>Seu projeto começa com uma conversa.</h3><p>Nosso assistente digital está aqui para ouvir sua ideia, ajudar com o escopo e encaminhar para a equipe.</p><button type="button" class="btn btn-primary" id="open-chat-contact">Conversar agora ↗</button></div>
+      </div>
+    </section>
+  </main>
+  <footer class="footer"><div class="container footer-top"><a class="brand footer-brand" href="#topo"><img class="brand-mark" src="/logo.png" alt="" width="45" height="45"><span class="brand-name">Gestar<span>Link</span></span></a><span data-i18n="footer_phrase">Soluções digitais. Negócios reais.</span><a href="#topo" data-i18n="footer_top">Voltar ao topo ↑</a></div><div class="container footer-bottom"><span>© <span id="year"></span> GestarLink.</span><span data-i18n="footer_location">Feito no Acre, para o mundo.</span></div></footer>
+<div class="gl-float" id="gl-float"><div class="gl-invite" id="gl-invite">Precisando de ajuda? ✨<br><small>Clique aqui que eu te ajudo.</small><button type="button" aria-label="Fechar convite" id="gl-invite-close">×</button></div><button class="gl-fab" id="gl-fab" type="button" aria-label="Abrir assistente virtual" aria-expanded="false" aria-controls="gl-widget"><span class="robot-face"><i class="robot-eye"></i><i class="robot-eye"></i><span class="robot-mouth"></span></span><span class="robot-antenna"></span><span class="gl-online"></span></button></div>
+<aside class="gl-widget" id="gl-widget" aria-label="Chat GestarLink" hidden><div class="glw-top"><div class="glw-avatar">✦</div><div><strong id="glw-title">Assistente GestarLink</strong><small id="glw-subtitle">Sua ideia começa aqui</small></div><button type="button" id="glw-close" aria-label="Fechar chat">×</button></div><div class="glw-messages" id="glw-messages" role="log" aria-live="polite"></div><div class="glw-quick" id="glw-quick"></div><form class="glw-form" id="glw-form"><label for="glw-input" class="sr-only">Mensagem</label><input id="glw-input" maxlength="1400" autocomplete="off" placeholder="Escreva sua mensagem..." required><button type="submit" id="glw-send" aria-label="Enviar mensagem">➤</button></form><div class="glw-actions"><button type="button" id="glw-contact">Deixar contato</button><button type="button" id="glw-human">Falar com pessoa</button></div><form id="glw-lead" class="glw-lead" hidden><div class="glw-lead-header">Como podemos responder?<button type="button" id="glw-lead-close" aria-label="Fechar formulário">×</button></div><input id="glw-name" maxlength="100" placeholder="Seu nome (opcional)" autocomplete="name"><input id="glw-email" maxlength="150" type="email" placeholder="E-mail" autocomplete="email"><input id="glw-phone" maxlength="45" type="tel" placeholder="Telefone / WhatsApp (opcional)" autocomplete="tel"><input id="glw-company" maxlength="120" placeholder="Empresa (opcional)" autocomplete="organization"><label><input id="glw-agree" type="checkbox" required> Concordo em enviar meus dados para retorno comercial, conforme a política de privacidade.</label><button type="submit">Enviar contato</button><p id="glw-lead-feedback" role="status"></p></form><p class="glw-footnote">Não compartilhe senhas ou dados sensíveis. <a href="/privacidade.html" target="_blank">Privacidade</a></p></aside>
+<div class="gl-consent" id="gl-consent" hidden><div><strong>Privacidade em primeiro lugar</strong><p>Podemos medir visitas anônimas e interações para melhorar o site? O chat salva mensagens enviadas voluntariamente.</p></div><button id="gl-reject" type="button">Só essenciais</button><button id="gl-accept" type="button">Aceitar métricas</button></div>
+<script src="./widget.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,80 @@
+name: GestarLink • Cloudflare Pages
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Selecione preview primeiro. Production substitui gestarlink.com.'
+        type: choice
+        required: true
+        default: preview
+        options:
+          - preview
+          - production
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts
+        working-directory: site
+      - run: npm test
+        working-directory: site
+      - name: Verify JavaScript
+        working-directory: site
+        run: |
+          node --check public/app.js
+          node --check public/widget.js
+          node --check public/_worker.js
+          node --check public/admin.js
+  deploy:
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment == 'production' && 'production' || 'preview' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --ignore-scripts
+        working-directory: site
+      - name: Verify Cloudflare secrets configured
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DBID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          test -n "$TOKEN" || { echo 'Missing CLOUDFLARE_API_TOKEN'; exit 1; }
+          test -n "$ACCOUNT" || { echo 'Missing CLOUDFLARE_ACCOUNT_ID'; exit 1; }
+          test -n "$DBID" || { echo 'Missing CLOUDFLARE_D1_DATABASE_ID'; exit 1; }
+      - name: Preserve original GestarLink logo from live site
+        run: |
+          curl --fail --location --silent --show-error --retry 3 https://gestarlink.com/logo.png --output site/public/logo.png
+          test $(wc -c < site/public/logo.png) -ge 1000 || { echo 'Logo appears invalid'; exit 1; }
+      - name: Create local Cloudflare Pages config (never commit secrets)
+        working-directory: site
+        env:
+          DBID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+        run: |
+          printf 'name = "gestarlink"\ncompatibility_date = "2026-10-24"\npages_build_output_dir = "./public"\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "gestarlink-crm"\ndatabase_id = "%s"\n' "$DBID" > wrangler.toml
+      - name: Apply idempotent D1 schema
+        working-directory: site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler d1 execute gestarlink-crm --remote --file=./db/schema.sql
+      - name: Deploy to existing Cloudflare Pages project
+        working-directory: site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ "${{ inputs.environment }}" = 'production' ]; then
+            npx wrangler pages deploy public --project-name gestarlink --branch main --commit-hash "$GITHUB_SHA"
+          else
+            npx wrangler pages deploy public --project-name gestarlink --branch preview --commit-hash "$GITHUB_SHA"
+          fi

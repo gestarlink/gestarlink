@@ -1,0 +1,13 @@
+{
+  "name": "gestarlink-commercial-site",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "GestarLink commercial website, floating sales agent and private dashboard",
+  "scripts": {
+    "dev": "wrangler pages dev public --local",
+    "deploy": "wrangler pages deploy public --project-name gestarlink",
+    "test": "node --test test/*.test.mjs"
+  },
+  "devDependencies": {"wrangler":"^4.0.0"}
+}
