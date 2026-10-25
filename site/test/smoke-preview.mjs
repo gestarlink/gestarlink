@@ -25,10 +25,16 @@ async function waitForBackend(){
 await waitForBackend();
 console.log('Preview health OK');
 // Cloudflare Pages canonicalizes /admin.html to /admin; both must be reachable, never a loop.
-const adminPage=await fetch(base+'/admin',{redirect:'follow',signal:AbortSignal.timeout(15000)});
-const adminHtml=await adminPage.text();
-assert.equal(adminPage.status,200,'Admin page must be reachable');
-assert.ok(adminHtml.includes('id="login-form"'),'Admin login form must render');
+let adminReady=false;
+for(let attempt=0;attempt<12;attempt++){
+ try{
+  const adminPage=await fetch(base+'/admin',{redirect:'follow',signal:AbortSignal.timeout(15000)});
+  const adminHtml=await adminPage.text();
+  if(adminPage.status===200&&adminHtml.includes('id="login-form"')){adminReady=true;break;}
+ }catch{}
+ await new Promise(resolve=>setTimeout(resolve,3000));
+}
+assert.ok(adminReady,'Admin page must become reachable after deployment propagation');
 console.log('Preview private login page OK');
 const config=await query('/api/config');
 assert.equal(config.response.status,200);
