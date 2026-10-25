@@ -130,9 +130,6 @@ export default {
     if (path === '/api' || path.startsWith('/api/')) {
       return gestarlinkApi({request, env, context});
     }
-    if (path === '/admin') {
-      return Response.redirect(new URL('/admin.html', request.url), 302);
-    }
     return env.ASSETS.fetch(request);
   },
 };
