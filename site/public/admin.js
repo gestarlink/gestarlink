@@ -9,3 +9,123 @@ const headings={overview:'Visão geral',leads:'Leads',threads:'Conversas',traffi
 $('export-leads').onclick=()=>{if(!info)return;const cells=[['Nome','E-mail','Telefone','Empresa','Serviço','Etapa','Origem','Data'],...info.leads.map(l=>[l.name,l.email,l.phone,l.company,l.service,l.stage,l.source,l.created_at])];const quote=x=>'"'+esc(x).replaceAll('"','""')+'"';const csv='\uFEFF'+cells.map(row=>row.map(quote).join(',')).join('\r\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='gestarlink-leads.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000)};
 $('settings-form').onsubmit=async e=>{e.preventDefault();const s=$('settings-msg');s.textContent='Salvando...';try{await api('/api/admin/settings','POST',{whatsapp:$('setting-whatsapp').value.replace(/[^0-9+]/g,''),contact_email:$('setting-email').value,assistant_name:$('setting-name').value});s.textContent='Configurações salvas.';await refresh()}catch(e){s.textContent=e.message}};
 refresh();})();
+
+
+/* GestarLink live attendance — separate from the read-only CRM analytics. */
+(()=>{
+ const $=id=>document.getElementById(id),pane=$('panel');if(!$('operator-toggle'))return;
+ const toggle=$('operator-toggle'),notice=$('operator-notification'),feedback=$('operator-feedback');
+ let enabled=false,initialized=false,lastInbound=0,selected='',lastRoom='',inFlight=false,audio=null,threads=[];
+ const esc=x=>String(x??'');
+ const api=async(path,method='GET',body)=>{
+  const r=await fetch(path,{method,credentials:'same-origin',cache:'no-store',headers:{'content-type':'application/json'},body:body?JSON.stringify(body):undefined});
+  let v;try{v=await r.json()}catch{throw Error('Resposta indisponível')};if(!r.ok)throw Error(v.error||'Falha de conexão');return v;
+ };
+ const unlockSound=async()=>{
+  const Constructor=window.AudioContext||window.webkitAudioContext;if(!Constructor)return;
+  try{audio=audio||new Constructor();if(audio.state==='suspended')await audio.resume()}catch(_){}
+ };
+ const alertSound=()=>{
+  if(!audio||audio.state!=='running')return;
+  try{
+   for(const [freq,delay] of [[650,0],[880,.14]]){
+    const osc=audio.createOscillator(),gain=audio.createGain(),at=audio.currentTime+delay;
+    osc.type='sine';osc.frequency.value=freq;
+    gain.gain.setValueAtTime(.0001,at);gain.gain.exponentialRampToValueAtTime(.16,at+.012);
+    gain.gain.exponentialRampToValueAtTime(.0001,at+.12);
+    osc.connect(gain).connect(audio.destination);osc.start(at);osc.stop(at+.13);
+   }
+  }catch(_){}
+ };
+ const reflect=()=>{
+  $('operator-mode').textContent=enabled?'Você está online · Atendimento humano':'Zai virtual · Você está offline';
+  $('operator-mode').classList.toggle('online',enabled);
+  $('operator-send').disabled=!enabled||inFlight||!selected;
+  toggle.checked=enabled;
+ };
+ async function presence(online){
+  const out=await api('/api/admin/presence','POST',{online});
+  enabled=!!out.online;reflect();
+  notice.textContent=enabled?'🔔 Atendimento humano ativado. Mantenha esta aba aberta para receber as mensagens e ouvir os avisos.':'Zai virtual ativada. As novas mensagens serão registradas no CRM.';
+ }
+ toggle.addEventListener('change',async()=>{
+  toggle.disabled=true;feedback.textContent='';
+  try{if(toggle.checked)await unlockSound();await presence(toggle.checked);}
+  catch(e){toggle.checked=enabled;feedback.textContent='Não foi possível alterar: '+e.message;}
+  finally{toggle.disabled=false;}
+ });
+ async function heartbeat(){
+  if(!enabled||pane.hidden)return;
+  try{await api('/api/admin/presence','POST',{online:true});}
+  catch(e){enabled=false;reflect();notice.textContent='Conexão perdida. Zai voltará ao atendimento virtual após a expiração da presença.';}
+ }
+ setInterval(heartbeat,25000);
+ function printMessage(m){
+  const b=document.createElement('div');b.className='operator-bubble '+(m.role==='user'?'visitor':m.sender==='human'?'staff':'virtual');
+  const tag=document.createElement('small');tag.textContent=m.role==='user'?'Visitante':m.sender==='human'?'Você · Equipe':'Zai virtual';
+  const body=document.createElement('span');body.textContent=m.body;b.append(tag,body);return b;
+ }
+ async function loadRoom(){
+  if(!selected||pane.hidden)return;
+  try{
+   const d=await api('/api/admin/thread?id='+encodeURIComponent(selected));
+   const key=(d.messages||[]).map(m=>m.id).join('|');
+   if(key===lastRoom)return;
+   lastRoom=key;const room=$('operator-messages');room.replaceChildren();
+   for(const m of d.messages||[])room.appendChild(printMessage(m));
+   room.scrollTop=room.scrollHeight;
+  }catch(e){feedback.textContent=e.message;}
+ }
+ function renderList(){
+  const list=$('operator-list');list.replaceChildren();
+  $('operator-count').textContent='('+threads.length+')';
+  if(!threads.length){list.textContent='Ainda não há conversas. Quando alguém chamar, aparecerá aqui.';return}
+  for(const t of threads){
+   const b=document.createElement('button');b.type='button';b.className='operator-item'+(selected===t.id?' active':'');
+   const name=document.createElement('strong');name.textContent=(t.intent||'Novo atendimento').replace(/^./,x=>x.toUpperCase());
+   const snippet=document.createElement('span');snippet.textContent=esc(t.last_message||'Nova conversa').slice(0,110);
+   const meta=document.createElement('small');meta.textContent=(t.source||'Acesso direto')+' · '+(t.message_count||0)+' mensagens';
+   b.append(name,snippet,meta);
+   b.onclick=()=>{selected=t.id;lastRoom='';feedback.textContent='';
+    $('operator-room-title').textContent='Atendimento '+t.id.slice(0,8);
+    $('operator-room-meta').textContent=(t.source||'Direto')+' · '+(t.lang||'pt').toUpperCase();
+    renderList();reflect();loadRoom();};
+   list.appendChild(b);
+  }
+ }
+ async function poll(){
+  if(pane.hidden)return;
+  try{
+   const data=await api('/api/admin/dashboard');
+   const latest=Number(data.latest_inbound_id||0);
+   if(!initialized){lastInbound=latest;initialized=true;}
+   else if(latest>lastInbound){
+    if(enabled){
+     alertSound();
+     notice.textContent='🔔 Nova mensagem de um possível cliente! Abra a conversa para responder.';
+     if('Notification'in window&&Notification.permission==='granted')new Notification('GestarLink: nova mensagem',{body:'Novo contato na Zai'});
+    }
+    lastInbound=latest;
+   }
+   threads=Array.isArray(data.threads)?data.threads:[];
+   renderList();await loadRoom();
+  }catch(_){}
+ }
+ setInterval(poll,4500);
+ $('operator-form').addEventListener('submit',async e=>{
+  e.preventDefault();if(!enabled||!selected||inFlight)return;
+  const input=$('operator-input'),msg=input.value.trim();if(!msg)return;
+  inFlight=true;reflect();feedback.textContent='Enviando...';
+  try{
+   await api('/api/admin/reply','POST',{thread_id:selected,message:msg});
+   input.value='';feedback.textContent='Mensagem entregue à conversa. ✓';
+   lastRoom='';await loadRoom();await poll();
+  }catch(e){feedback.textContent=e.message;}
+  finally{inFlight=false;reflect();}
+ });
+ document.querySelector('[data-target="live"]')?.addEventListener('click',()=>{$('section-title').textContent='Atendimento ao vivo';poll();});
+ $('logout').addEventListener('click',()=>{if(enabled)fetch('/api/admin/presence',{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({online:false})}).catch(()=>{});});
+ window.addEventListener('pagehide',()=>{if(enabled)fetch('/api/admin/presence',{method:'POST',credentials:'same-origin',keepalive:true,headers:{'content-type':'application/json'},body:JSON.stringify({online:false})}).catch(()=>{});});
+ const ready=setInterval(()=>{if(!pane.hidden){clearInterval(ready);poll()}},1000);
+ reflect();
+})();
