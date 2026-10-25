@@ -22,7 +22,7 @@ const ctx=(request,env)=>({request,env});
 test('health/config work and disallowed method blocked',async()=>{
  const env={DB:mkDB()};
  const health=await onRequest(ctx(req('/api/health'),env));assert.equal(health.status,200);assert.equal((await health.json()).ok,true);
- const config=await onRequest(ctx(req('/api/config'),env));assert.equal((await config.json()).assistant_name,'GestarLink Assistente');
+ const config=await onRequest(ctx(req('/api/config'),env));assert.equal((await config.json()).assistant_name,'Zai');
  const blocked=await onRequest(ctx(req('/api/health','DELETE'),env));assert.equal(blocked.status,405);
 });
 test('chat persists user & assistant and uses guided fallback',async()=>{
