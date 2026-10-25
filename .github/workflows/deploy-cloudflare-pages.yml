@@ -106,7 +106,7 @@ jobs:
           set -euo pipefail
           printf 'name = "gestarlink"\ncompatibility_date = "2026-10-24"\npages_build_output_dir = "./public"\n\n' > wrangler.toml
           if [ "$DEPLOY_ENV" = "preview" ]; then
-            printf '[[env.preview.d1_databases]]\nbinding = "DB"\ndatabase_name = "%s"\ndatabase_id = "%s"\n' "$DATABASE_NAME" "$DATABASE_ID" >> wrangler.toml
+            printf '[[env.preview.d1_databases]]\nbinding = "DB"\ndatabase_name = "%s"\ndatabase_id = "%s"\n\n[env.preview.ai]\nbinding = "AI"\n' "$DATABASE_NAME" "$DATABASE_ID" >> wrangler.toml
           else
             printf '[[env.production.d1_databases]]\nbinding = "DB"\ndatabase_name = "%s"\ndatabase_id = "%s"\n' "$DATABASE_NAME" "$DATABASE_ID" >> wrangler.toml
           fi
