@@ -77,7 +77,11 @@ export async function onRequest({request:req,env}){
  if(path==='/api/lead'&&method(req,'POST')){
    if(!await withinRateLimit(req,env,'lead',15,3600000))return fail('Limite de acesso atingido.',429);
    const b=await payload(req);if(!validId(b.thread_id)||!validId(b.visitor_id))return fail('Sessão inválida');
-   const thread=await env.DB.prepare('SELECT visitor_id FROM threads WHERE id=?').bind(b.thread_id).first();if(!thread||thread.visitor_id!==b.visitor_id)return fail('Conversa não encontrada',404);
+   const source=sourceFrom(req,b);
+   // A visitor may leave contact information before sending their first chat message.
+   await env.DB.prepare('INSERT OR IGNORE INTO visitors(id,source,landing,country,consent) VALUES(?,?,?,?,0)').bind(b.visitor_id,source,clean(b.path,220),'').run();
+   await env.DB.prepare('INSERT OR IGNORE INTO threads(id,visitor_id,source,page,lang) VALUES(?,?,?,?,?)').bind(b.thread_id,b.visitor_id,source,clean(b.path,200),ALLOWED_LANG.has(b.lang)?b.lang:'pt').run();
+   const thread=await env.DB.prepare('SELECT visitor_id FROM threads WHERE id=?').bind(b.thread_id).first();if(!thread||thread.visitor_id!==b.visitor_id)return fail('Conversa pertence a outra sessão',403);
    const email=clean(b.email,150),name=clean(b.name,100),phone=clean(b.phone,45);if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)&&phone.length<8)return fail('Informe e-mail válido ou telefone');
    await env.DB.prepare(`INSERT INTO leads(id,thread_id,name,email,phone,company,service,summary) VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(thread_id) DO UPDATE SET name=excluded.name,email=excluded.email,phone=excluded.phone,company=excluded.company,service=excluded.service,summary=excluded.summary,updated_at=datetime('now')`).bind(uuid(),b.thread_id,name,email,phone,clean(b.company,120),clean(b.service,100),clean(b.summary,1000)).run();
    return j({ok:true});

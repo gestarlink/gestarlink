@@ -41,3 +41,10 @@ test('cross-origin mutation and unconfigured DB blocked',async()=>{
  const cross=await onRequest(ctx(req('/api/chat','POST',{visitor_id:id1,thread_id:id2,message:'teste'},{origin:'https://malicious.example'}),{DB:db,SESSION_SECRET:'secret'}));assert.equal(cross.status,403);
  const unavailable=await onRequest(ctx(req('/api/health'),{}));assert.equal(unavailable.status,503);
 });
+
+test('lead can be received without a prior chat message',async()=>{
+ const DB=mkDB(),env={DB,SESSION_SECRET:'test-only-secret'};
+ const r=await onRequest(ctx(req('/api/lead','POST',{thread_id:id2,visitor_id:id1,email:'cliente@example.com',name:'Cliente',lang:'pt'}),env));
+ assert.equal(r.status,200,await r.clone().text());
+ assert.equal(DB.logs.some(([sql])=>sql.startsWith('INSERT INTO leads')),true);
+});

@@ -1,36 +1,37 @@
-# GestarLink — Site, chat e CRM
+# GestarLink — site, atendente e CRM
 
-Código da nova GestarLink em `site/` dentro do repositório de perfil `gestarlink/gestarlink`. O README original do perfil fica na raiz, preservado.
+Código versionado em `site/` dentro do repositório `gestarlink/gestarlink`. A raiz e o README do perfil permanecem preservados.
 
-**Status:** versionamento no GitHub não significa publicação: a versão pública permanece inalterada até a execução manual do workflow e validação na Cloudflare.
+## Status
+O código está no GitHub e os testes automáticos são executados a cada alteração. A publicação em `gestarlink.com` requer as credenciais da Cloudflare salvas como segredos no GitHub e uma execução manual do workflow em Preview.
 
-## Arquitetura
+## O que está implementado
+- Site comercial responsivo PT/EN/ES e apresentação de serviços.
+- Atendente flutuante com chat guiado e IA opcional.
+- CRM privado em `/admin.html`, leads, visitas consentidas, conversas, histórico e funil.
+- D1 com bancos independentes para preview e produção.
+- Workflow GitHub Actions em `../.github/workflows/deploy-cloudflare-pages.yml`.
 
-- `public/`: site institucional PT/EN/ES, assistente de vendas flutuante e painel administrativo `/admin.html`.
-- `public/_worker.js`: API do chat e CRM para Cloudflare Pages Advanced Mode.
-- `db/schema.sql`: tabelas de visitantes, conversas, leads e painel D1.
-- `test/`: testes de unidade e estáticos (`npm test`).
-- `functions/api/`: alternativa de rota Pages Functions (não carregada quando `_worker.js` é usado).
-- `../.github/workflows/deploy-cloudflare-pages.yml`: publicação **manual** no projeto Pages existente `gestarlink`; escolha `preview` antes de `production`.
+## Preparação da primeira publicação — uma única vez
 
-## Publicação segura (depois de cadastrar os segredos)
+1. Crie um token Cloudflare com permissões **Account → Cloudflare Pages → Edit** e **Account → D1 → Edit**, limitado à sua conta. Não cole o token no chat ou nos arquivos.
+2. No GitHub, repositório `gestarlink/gestarlink` → **Settings → Secrets and variables → Actions → New repository secret**, cadastre:
+   - `CLOUDFLARE_API_TOKEN`: token acima.
+   - `CLOUDFLARE_ACCOUNT_ID`: identificador da sua conta Cloudflare (não é senha).
+   - `GESTARLINK_ADMIN_PASSWORD`: senha exclusiva e forte, com no mínimo 12 caracteres, que você usará em `/admin.html`.
+3. Abra **Actions → GestarLink • Cloudflare Pages → Run workflow**, escolha **preview**. O workflow valida o código, localiza ou cria o D1 separado de preview, aplica o esquema SQL, configura a senha e uma chave aleatória de sessão na Cloudflare e publica na URL de prévia.
+4. Valide `https://preview.gestarlink.pages.dev/`, o chat e o painel. O site oficial não será substituído por um deploy de preview.
+5. Somente depois de validar o funcionamento completo, execute o workflow escolhendo **production**. Ele utiliza um banco D1 diferente.
 
-1. Na Cloudflare crie banco D1 `gestarlink-crm`. O ID é usado como secret do GitHub.
-2. Em GitHub, configure Actions Secrets no repositório: `CLOUDFLARE_API_TOKEN` (permissões mínimas Pages + D1), `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_D1_DATABASE_ID`. **Não coloque segredos em commits.**
-3. No Pages do projeto `gestarlink` configure `ADMIN_PASSWORD` (senha forte, exclusiva, pelo menos 12 caracteres) e `SESSION_SECRET` (string aleatória de >= 32 bytes) como segredos. A aplicação bloqueia API de dados quando DB ausente.
-4. O workflow obtém `logo.png` original do próprio site `https://gestarlink.com/logo.png` durante o deploy. Isso preserva a marca fiel sem reinterpretá-la; se o download falhar, não haverá deploy.
-5. No GitHub Actions escolha workflow **GestarLink • Cloudflare Pages**, `Run workflow`, ambiente `preview`. Confirme rota `/api/health`, `/admin.html`, chat e D1. Não promova para produção antes dos testes finais.
-6. Depois de confirmado, execute novamente escolhendo `production`. Cloudflare permite reverter via deployments anteriores.
+Nunca coloque valores secretos no repositório. O workflow não tem gatilho automático para deploy: atualizações de código executam apenas os testes. A implantação é manual para proteger a versão atual.
 
-## Recursos e limites
+## Limitações
+- O atendimento via IA generativa só funciona quando um binding `AI` compatível é configurado; sem ele, utiliza respostas guiadas.
+- O CRM registra visitantes mediante consentimento de analytics ou quando eles iniciam contato. A identificação real depende dos dados fornecidos voluntariamente.
+- Ainda não há alertas externos automáticos por e-mail ou WhatsApp.
+- A execução de produção exige testes e revisão dos dados comerciais e política de privacidade.
 
-- Frontend e CRM são implementação inicial que dependem de testes reais e configuração em produção. IA generativa requer binding `AI` na Cloudflare; sem ele o bot responde via regras guiadas.
-- O banco não envia notificações ao dono automaticamente; contatos ficam no painel.
-- Analytics de visitantes são baseados em consentimento. Não é possível identificar uma pessoa sem que ela informe dados.
-- Os arquivos usam referências genéricas de portfólio; confirme informações e preços antes de publicar.
-
-## Testar localmente
-
+## Testar
 ```sh
 cd site
 npm install --ignore-scripts
