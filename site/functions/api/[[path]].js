@@ -29,18 +29,37 @@ function method(req,m){return req.method===m;}
 async function aiAnswer(env,context,lang){
  if(!env.AI)return null;
  const prompts={
- pt:'Você é o assistente de pré-vendas da GestarLink, estúdio brasileiro de websites, PWA, sistemas e automações. Seja natural, educado, breve (máx. 90 palavras), e faça uma pergunta relevante por vez. Descubra tipo de serviço, necessidade, urgência e contato, sem pressão. Preços são apenas valores iniciais: ajustes a partir de US$100, sites US$250, automações US$300, MVP US$600. Nunca prometa preço/prazo fechado ou diga que um humano está online. Para falar com humano, peça email. Não peça senhas nem dados sensíveis.',
- en:'You are GestarLink’s sales assistant. Short conversational replies, one question at a time. Learn service, need, deadline and contact details voluntarily. Starting prices only: fixes $100, websites $250, automation $300, MVP $600. Never guarantee delivery, price or human availability. No passwords or sensitive info.',
- es:'Eres el asistente comercial de GestarLink. Respuestas breves y naturales, una pregunta por vez. Identifica servicio, necesidad, plazo y contacto opcional. Precios desde: arreglos $100, sitios $250, automatización $300, MVP $600. No prometas plazos o precios finales ni atención humana inmediata. No pidas datos sensibles.'
+ pt:'Você é a Zai, assistente virtual de projetos da GestarLink. Converse de forma natural, como no WhatsApp, e não como um formulário: respostas claras e calorosas, uma ou duas frases curtas (máx. 65 palavras) e no máximo uma pergunta útil por vez. Responda primeiro a dúvida, acompanhe o histórico e não repita questões já respondidas. Apresente sites, ajustes, aplicativos, SaaS e automações. Preços são pontos de partida: ajustes US$100, sites US$250, automações US$300, MVPs US$600, variam pelo escopo. Se pedirem humano, indique o botão "Falar com a equipe" ou "Deixar contato", sem prometer disponibilidade imediata. Nunca peça dados sensíveis nem prometa preço/prazo final. Você é virtual; nunca finja ser pessoa real.',
+ en:'You are Zai, GestarLink’s virtual project assistant. Chat like WhatsApp: warm and concise, one or two short sentences (max 65 words) with at most one useful follow-up question. Answer the question first, remember context, avoid repetitive scripted replies. Services: websites, fixes, apps, SaaS, automation. Starting prices USD: fixes 100, sites 250, automations 300, MVP 600; final quote depends on scope. For humans, refer to "Talk to the team" or "Leave contact" without promising live availability. Never ask sensitive data or pretend to be human.',
+ es:'Eres Zai, la asistente virtual de proyectos de GestarLink. Habla como en WhatsApp, cálida y breve, una o dos frases (máx. 65 palabras), como máximo una pregunta útil por respuesta. Contesta primero, recuerda el contexto, evita preguntas repetidas. Servicios: sitios, mejoras, apps, SaaS y automatizaciones. Precios desde: mejoras USD 100, sitios 250, automatizaciones 300, MVP 600, según alcance. Para asistencia humana sugiere "Hablar con el equipo" o "Dejar contacto". Nunca pidas datos sensibles ni finjas ser humana.'
  };
- try {const response=await env.AI.run('@cf/meta/llama-3.1-8b-instruct',{messages:[{role:'system',content:prompts[lang]||prompts.pt},...context.map(m=>({role:m.role==='user'?'user':'assistant',content:m.body}))],max_tokens:170,temperature:.55});return clean(response?.response,850)||null;}catch(e){console.log('AI unavailable',String(e).slice(0,80));return null;}
+ try {const response=await env.AI.run('@cf/meta/llama-3.1-8b-instruct',{messages:[{role:'system',content:prompts[lang]||prompts.pt},...context.map(m=>({role:m.role==='user'?'user':'assistant',content:m.body}))],max_tokens:145,temperature:.6});return clean(response?.response,600)||null;}catch(e){console.log('AI unavailable',String(e).slice(0,80));return null;}
 }
-function fallback(message,lang){const m=message.toLowerCase();const es=lang==='es',en=lang==='en';
- if(/humano|atendente|pessoa|human|person|persona|whatsapp|contato|contact|contacto/.test(m))return es?'Claro. Puedes dejar tu correo usando el botón “Dejar contacto” y el equipo podrá responderte.':en?'Of course. Select “Leave contact” to share your email so our team can follow up.':'Claro! Toque em “Deixar contato” para informar seu e-mail. Nossa equipe poderá responder por lá.';
- if(/site|página|website|landing|web/.test(m))return es?'¡Perfecto! ¿Necesitas crear el sitio desde cero o mejorar uno existente?':en?'Great! Are you building a new website or improving an existing one?':'Ótimo! Você quer criar o site do zero ou melhorar um que já existe?';
- if(/autom|integr|api|ia|ai/.test(m))return es?'Entendido. ¿Qué tarea repetitiva o integración deseas automatizar?':en?'Got it. Which repetitive task or integration would you like to automate?':'Entendi! Qual tarefa repetitiva ou integração você gostaria de automatizar?';
- if(/app|sistema|system|saas|pwa|aplicativo/.test(m))return es?'Buena idea. ¿Qué problema debe resolver la aplicación?':en?'Nice idea. What problem should the application solve?':'Boa ideia! Qual problema o aplicativo deve resolver?';
- return es?'Entiendo. ¿Puedes contarme un poco más sobre tu proyecto y qué resultado deseas obtener?':en?'I see. Could you share a little more about the project and the result you want?':'Entendi! Você pode me contar um pouco mais sobre o projeto e o resultado que deseja alcançar?';
+function fallback(message,lang,history=[]){
+ const m=String(message).toLowerCase(),en=lang==='en',es=lang==='es';
+ const prior=history.filter(x=>x.role==='user').slice(0,-1).map(x=>x.body.toLowerCase()).join(' ');
+ const whole=prior+' '+m,first=!prior.trim();
+ const say=(pt,english,spanish)=>es?spanish:en?english:pt;
+ if(/(preço|preco|valor|custa|quanto|orçamento|orcamento|price|cost|quote|presupuesto|cu[aá]nto|precio)/i.test(m))
+   return say('Os valores iniciais são US$100 para ajustes, US$250 para sites, US$300 para automações e US$600 para MVPs. O orçamento depende do projeto. Qual dessas soluções você procura?',
+   'Starting points are $100 for fixes, $250 for websites, $300 for automation and $600 for MVPs. Final pricing depends on scope. Which fits your idea?',
+   'Como referencia: mejoras desde US$100, sitios US$250, automatización US$300 y MVPs US$600. El presupuesto depende del alcance. ¿Cuál necesitas?');
+ if(/(prazo|demora|tempo|quando|urgente|deadline|timeline|plazo|cu[aá]ndo)/i.test(m))
+   return say('O prazo varia conforme o escopo. Você tem uma data em mente para começar?','Timing depends on the project scope. Do you have a target start date?','El plazo depende del proyecto. ¿Tienes una fecha para empezar?');
+ if(/(humano|atendente|pessoa|human|person|persona|whatsapp|contato|contact|contacto)/i.test(m))
+   return say('Claro! É só tocar em “Falar com a equipe” ou “Deixar contato”. Se houver WhatsApp configurado, ele aparece por aqui.','Sure! Tap “Talk to the team” or “Leave contact”. WhatsApp is available here when configured.','¡Claro! Toca “Hablar con el equipo” o “Dejar contacto”. Si WhatsApp está configurado, aparecerá aquí.');
+ if(/(obrigad|valeu|thanks|thank you|gracias)/i.test(m))
+   return say('Por nada! 💜 Se quiser, posso ajudar a organizar sua ideia para a equipe.','You’re welcome! 💜 I can help you describe your idea for the team.','¡Con gusto! 💜 Puedo ayudarte a resumir tu idea para el equipo.');
+ if(/^(oi|olá|ola|hey|hello|hi|hola|buenas|bom dia|boa tarde)[!\s.]*$/i.test(m.trim()))
+   return say('Oi! 😊 Me conta o que você quer criar ou melhorar.','Hey! 😊 Tell me what you want to build or improve.','¡Hola! 😊 Cuéntame qué quieres crear o mejorar.');
+ if(/(site|página|pagina|website|landing|web)/i.test(whole))
+   return first?say('Legal! Você quer começar um site do zero ou melhorar um existente?','Great! Are you creating a new site or improving an existing one?','¡Genial! ¿Quieres crear un sitio nuevo o mejorar uno existente?')
+   :say('Entendi! Seu objetivo principal é divulgar a empresa, vender ou receber contatos?','Got it! Is your main goal to showcase your business, sell or get enquiries?','¡Entendido! ¿El objetivo es presentar tu negocio, vender o recibir contactos?');
+ if(/(autom|integr|api|ia|ai)/i.test(whole))
+   return say('Dá para simplificar esse processo. Qual tarefa você gostaria de automatizar?','We can simplify that. Which task do you want to automate?','Podemos simplificarlo. ¿Qué tarea quieres automatizar?');
+ if(/(app|sistema|system|saas|pwa|aplicativo)/i.test(whole))
+   return say('Boa ideia! Que problema o aplicativo vai resolver no dia a dia?','Nice idea! What everyday problem will your app solve?','¡Buena idea! ¿Qué problema cotidiano resolverá la app?');
+ return say('Entendi! Pode me contar um pouco mais do resultado que você espera?','Got it! Could you tell me a little more about the result you want?','¡Entendido! ¿Me cuentas un poco más sobre el resultado que buscas?');
 }
 export async function onRequest({request:req,env}){
  const url=new URL(req.url),path=url.pathname;
@@ -50,7 +69,7 @@ export async function onRequest({request:req,env}){
  if(req.method!=='GET'){const origin=req.headers.get('origin');if(origin&&origin!==url.origin)return fail('Origem inválida.',403);}
  try{
  if(path==='/api/health'&&method(req,'GET'))return j({ok:true,ai:!!env.AI});
- if(path==='/api/config'&&method(req,'GET')){const s=await settings(env);return j({whatsapp:s.whatsapp||'',contact_email:s.contact_email||'',assistant_name:s.assistant_name||'GestarLink Assistente',ai:!!env.AI});}
+ if(path==='/api/config'&&method(req,'GET')){const s=await settings(env);return j({whatsapp:s.whatsapp||'',contact_email:s.contact_email||'',assistant_name:s.assistant_name||'Zai',ai:!!env.AI});}
  if(path==='/api/event'&&method(req,'POST')){
    const b=await payload(req);if(!b.consent)return j({ok:true,skipped:true});
    if(!validId(b.visitor_id)||!TYPES.has(b.type))return fail('Evento inválido');
@@ -69,7 +88,7 @@ export async function onRequest({request:req,env}){
    const thread=await env.DB.prepare('SELECT visitor_id FROM threads WHERE id=?').bind(b.thread_id).first();if(thread?.visitor_id!==b.visitor_id)return fail('Sessão inválida',403);
    await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'user',input).run();
    const rows=await env.DB.prepare('SELECT role,body FROM messages WHERE thread_id=? ORDER BY created_at DESC, rowid DESC LIMIT 12').bind(b.thread_id).all();const context=(rows.results||[]).reverse();
-   const answer=(await aiAnswer(env,context,lang))||fallback(input,lang);await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'assistant',answer).run();
+   const answer=(await aiAnswer(env,context,lang))||fallback(input,lang,context);await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'assistant',answer).run();
    let intent='';if(/site|web|landing/i.test(input))intent='web';else if(/auto|api|integr|ia/i.test(input))intent='automation';else if(/app|saas|sistema/i.test(input))intent='mvp';
    await env.DB.prepare("UPDATE threads SET updated_at=datetime('now'),intent=CASE WHEN ?<>'' THEN ? ELSE intent END WHERE id=?").bind(intent,intent,b.thread_id).run();
    return j({reply:answer,ai:!!env.AI});

@@ -21,3 +21,13 @@ test('public files do not contain server secrets',()=>{
   const s=read(file);assert.ok(!s.includes('YOUR_SECRET'));assert.ok(!s.includes('ADMIN_PASSWORD='));
  }
 });
+
+test('Zai uses an accessible messenger interface',()=>{
+ const html=read('public/index.html'),widget=read('public/widget.js'),worker=read('public/_worker.js');
+ assert.ok(html.includes('id="glw-title">Zai'));
+ assert.ok(html.includes('<textarea id="glw-input"'));
+ assert.ok(html.includes('id="glw-new"'));
+ assert.ok(html.includes('Zai é uma assistente virtual'));
+ assert.ok(widget.includes('gl_zai_chat_history'));
+ assert.ok(worker.includes("assistant_name:s.assistant_name||'Zai'"));
+});
