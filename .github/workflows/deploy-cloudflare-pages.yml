@@ -142,8 +142,10 @@ jobs:
           else
             npx wrangler pages deploy public --project-name gestarlink --branch preview --commit-hash "$GITHUB_SHA"
           fi
-      - name: Check chat API
+      - name: Preview live smoke tests (chat, lead, admin and D1)
         if: github.event_name == 'push' || inputs.environment == 'preview'
-        run: |
-          curl --retry 5 --retry-delay 3 --fail --silent --show-error \
-            https://preview.gestarlink.pages.dev/api/health | jq -e '.ok == true'
+        working-directory: site
+        env:
+          SMOKE_URL: https://preview.gestarlink.pages.dev
+          SMOKE_ADMIN_PASSWORD: ${{ secrets.GESTARLINK_ADMIN_PASSWORD }}
+        run: node test/smoke-preview.mjs
