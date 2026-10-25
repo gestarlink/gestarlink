@@ -19,10 +19,46 @@
  try{if(consent==='yes')localStorage.setItem('gl_visitor',visitor);else sessionStorage.setItem('gl_temp_visitor',visitor);sessionStorage.setItem('gl_thread',thread)}catch(_){}
  const query=new URLSearchParams(location.search);const source=query.get('utm_source')||document.referrer&&(()=>{try{return new URL(document.referrer).hostname}catch{return 'direct'}})()||'direct';
  const meta={visitor_id:visitor,thread_id:thread,source,campaign:query.get('utm_campaign')||'',landing:location.pathname,path:location.pathname};
+ let pollTimer=null,online=false,renderedIds='',lastKnownMode='';
+ const humanAcknowledgement={
+  pt:'Sua mensagem chegou! 💬 A equipe está online e vai responder aqui.',
+  en:'Message delivered! 💬 Our team is online and will reply here.',
+  es:'¡Mensaje recibido! 💬 Nuestro equipo está conectado y responderá aquí.'
+ };
+ function status(){
+  const el=$('glw-subtitle');
+  el.textContent=online?(lang()==='pt'?'● Equipe online · Atendimento humano':lang()==='es'?'● Equipo conectado · Atención humana':'● Team online · Human support')
+   :(lang()==='pt'?'● Zai · Assistente virtual':lang()==='es'?'● Zai · Asistente virtual':'● Zai · Virtual assistant');
+ }
+ async function sync(){
+  if(widget.hidden||sending)return;
+  try{
+   const u='/api/thread?visitor_id='+encodeURIComponent(visitor)+'&thread_id='+encodeURIComponent(thread);
+   const r=await fetch(u,{credentials:'same-origin',cache:'no-store'});
+   if(!r.ok)return;
+   const data=await r.json();online=!!data.human_online;status();
+   const msgs=Array.isArray(data.messages)?data.messages:[];
+   const key=msgs.map(m=>m.id).join('|');
+   if(msgs.length&&key!==renderedIds){
+    renderedIds=key;messages.replaceChildren();quick.replaceChildren();
+    history=msgs.slice(-50).map(m=>({message:m.body,role:m.role==='user'?'user':'bot',at:Date.parse(m.created_at+'Z')||Date.now()}));
+    persist();
+    for(const m of msgs){
+      const role=m.role==='user'?'user':'bot';
+      const stamp=Date.parse(m.created_at+'Z')||Date.now();
+      const b=bubble(m.body,role,stamp,false);
+      if(m.sender==='human')b.parentNode.classList.add('from-team');
+    }
+   }
+  }catch(_){}
+ }
+ function startSync(){if(pollTimer)clearInterval(pollTimer);sync();pollTimer=setInterval(sync,3500)}
+ function stopSync(){if(pollTimer)clearInterval(pollTimer);pollTimer=null}
+
  async function post(path,data,method='POST'){const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),18000);try{const r=await fetch(path,{method,headers:{'content-type':'application/json'},body:JSON.stringify(data),credentials:'same-origin',signal:ctrl.signal});const out=await r.json();if(!r.ok)throw new Error(out.error||'Unavailable');return out;}finally{clearTimeout(timer)}}
  function event(type,value=''){if(consent!=='yes')return;post('/api/event',{...meta,consent:true,type,path:location.pathname,value}).catch(()=>{});}
  if(consent===null){$('gl-consent').hidden=false;}$('gl-accept').onclick=()=>{consent='yes';localStorage.setItem('gl_analytics','yes');localStorage.setItem('gl_visitor',visitor);$('gl-consent').hidden=true;event('page_view')};$('gl-reject').onclick=()=>{consent='no';localStorage.setItem('gl_analytics','no');localStorage.removeItem('gl_visitor');$('gl-consent').hidden=true};if(consent==='yes')event('page_view');
- const updateUI=()=>{input.placeholder=t('placeholder');$('glw-contact').textContent=t('contact');$('glw-human').textContent=t('human');invite.childNodes[0].textContent=t('invite');invite.querySelector('small').textContent=t('invitesub');};
+ const updateUI=()=>{input.placeholder=t('placeholder');$('glw-contact').textContent=t('contact');$('glw-human').textContent=t('human');invite.childNodes[0].textContent=t('invite');invite.querySelector('small').textContent=t('invitesub');status()};
  const bubble=(message,cls='bot',at=Date.now(),save=true)=>{
   const outer=document.createElement('div');outer.className='glw-message '+cls;
   const body=document.createElement('span');body.className='glw-bubble';body.textContent=message;
@@ -35,14 +71,20 @@
  };
  const typing=()=>{const el=document.createElement('div');el.className='glw-typing';el.setAttribute('aria-label',t('wait'));el.innerHTML='<span></span><span></span><span></span>';messages.appendChild(el);messages.scrollTop=messages.scrollHeight;return el};
  function shortcuts(){quick.replaceChildren();[['site',t('site')],['app',t('app')],['auto',t('auto')]].forEach(([k,v])=>{let b=document.createElement('button');b.type='button';b.textContent=v;b.onclick=()=>sendMsg(v);quick.appendChild(b)});}
- function open(){widget.hidden=false;fab.setAttribute('aria-expanded','true');invite.hidden=true;opening=true;updateUI();if(!messages.childElementCount){if(history.length){history.forEach(m=>bubble(m.message,m.role,m.at,false));quick.replaceChildren()}else{bubble(t('welcome'));shortcuts()}}else{quick.replaceChildren()}event('chat_open');if(window.matchMedia('(pointer:fine)').matches)input.focus({preventScroll:true});}
- function close(){widget.hidden=true;fab.setAttribute('aria-expanded','false');$('glw-lead').hidden=true;}
+ function open(){widget.hidden=false;fab.setAttribute('aria-expanded','true');invite.hidden=true;opening=true;updateUI();if(!messages.childElementCount){if(history.length){history.forEach(m=>bubble(m.message,m.role,m.at,false));quick.replaceChildren()}else{bubble(t('welcome'));shortcuts()}}else{quick.replaceChildren()}event('chat_open');startSync();if(window.matchMedia('(pointer:fine)').matches)input.focus({preventScroll:true});}
+ function close(){stopSync();widget.hidden=true;fab.setAttribute('aria-expanded','false');$('glw-lead').hidden=true;}
  fab.onclick=()=>widget.hidden?open():close();
- $('glw-new').onclick=()=>{if(sending)return;thread=crypto.randomUUID();history=[];persist();try{sessionStorage.setItem('gl_thread',thread)}catch(_){}meta.thread_id=thread;messages.replaceChildren();quick.replaceChildren();input.value='';bubble(t('welcome'));shortcuts();sizeComposer();};$('glw-close').onclick=close;$('open-chat-contact')?.addEventListener('click',open);$('gl-invite-close').onclick=()=>invite.hidden=true;
+ $('glw-new').onclick=()=>{if(sending)return;thread=crypto.randomUUID();history=[];renderedIds='';persist();try{sessionStorage.setItem('gl_thread',thread)}catch(_){}meta.thread_id=thread;messages.replaceChildren();quick.replaceChildren();input.value='';bubble(t('welcome'));shortcuts();sizeComposer();};$('glw-close').onclick=close;$('open-chat-contact')?.addEventListener('click',open);$('gl-invite-close').onclick=()=>invite.hidden=true;
  setTimeout(()=>{if(!opening&&widget.hidden&&sessionStorage.getItem('gl_invite_shown')!=='1'){invite.hidden=false;updateUI();try{sessionStorage.setItem('gl_invite_shown','1')}catch(_){}}},6500);
  async function sendMsg(value){const msg=String(value||input.value).trim();if(!msg||sending)return;
   sending=true;quick.replaceChildren();input.value='';sizeComposer();bubble(msg,'user');const pending=typing();
-  try{const r=await post('/api/chat',{...meta,message:msg,lang:lang()});pending.remove();bubble(r.reply,'bot');event('chat_started');}
+  try{
+   const r=await post('/api/chat',{...meta,message:msg,lang:lang()});pending.remove();
+   online=!!r.human_online;status();
+   if(r.mode==='human')bubble(humanAcknowledgement[lang()]||humanAcknowledgement.pt,'system');
+   else if(r.reply)bubble(r.reply,'bot');
+   event('chat_started');await sync();
+  }
   catch(e){pending.remove();bubble(t('err'),'system');input.value=msg;}
   finally{sending=false;sizeComposer();if(window.matchMedia('(pointer:fine)').matches)input.focus({preventScroll:true})}
  }

@@ -49,3 +49,8 @@
 .glw-lead{position:absolute;bottom:93px;left:9px;right:9px;z-index:5;max-height:70%;border:1px solid #426084;border-radius:15px;box-shadow:0 17px 42px #000c}
 @media(max-width:600px){.gl-widget{bottom:82px;right:8px;width:calc(100vw - 16px);height:calc(100dvh - 97px)}.glw-messages{max-height:none}}
 @media(prefers-reduced-motion:reduce){.glw-typing span{animation:none}}
+
+/* Human reply bubble + live operator status */
+.glw-message.from-team .glw-bubble{background:#163d46;border:1px solid #338e93;border-radius:16px 16px 16px 5px}
+.glw-message.from-team::before{content:"Equipe GestarLink";font-size:10px;color:#70dccd;align-self:flex-start}
+#glw-subtitle{color:#bdd4ed}
