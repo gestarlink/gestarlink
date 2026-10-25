@@ -1,9 +1,13 @@
 name: GestarLink • Cloudflare Pages
 on:
+  push:
+    paths:
+      - 'site/**'
+      - '.github/workflows/deploy-cloudflare-pages.yml'
   workflow_dispatch:
     inputs:
       environment:
-        description: 'Selecione preview primeiro. Production substitui gestarlink.com.'
+        description: 'Teste primeiro em preview. Production atualiza gestarlink.com.'
         type: choice
         required: true
         default: preview
@@ -12,6 +16,7 @@ on:
           - production
 permissions:
   contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -24,14 +29,16 @@ jobs:
         working-directory: site
       - run: npm test
         working-directory: site
-      - name: Verify JavaScript
+      - name: Syntax check
         working-directory: site
         run: |
           node --check public/app.js
           node --check public/widget.js
           node --check public/_worker.js
           node --check public/admin.js
+
   deploy:
+    if: github.event_name == 'workflow_dispatch'
     needs: validate
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment == 'production' && 'production' || 'preview' }}
@@ -42,39 +49,101 @@ jobs:
           node-version: '22'
       - run: npm install --ignore-scripts
         working-directory: site
-      - name: Verify Cloudflare secrets configured
+      - name: Check Cloudflare credentials
         env:
           TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          DBID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
+          ADMIN: ${{ secrets.GESTARLINK_ADMIN_PASSWORD }}
         run: |
-          test -n "$TOKEN" || { echo 'Missing CLOUDFLARE_API_TOKEN'; exit 1; }
-          test -n "$ACCOUNT" || { echo 'Missing CLOUDFLARE_ACCOUNT_ID'; exit 1; }
-          test -n "$DBID" || { echo 'Missing CLOUDFLARE_D1_DATABASE_ID'; exit 1; }
-      - name: Preserve original GestarLink logo from live site
-        run: |
-          curl --fail --location --silent --show-error --retry 3 https://gestarlink.com/logo.png --output site/public/logo.png
-          test $(wc -c < site/public/logo.png) -ge 1000 || { echo 'Logo appears invalid'; exit 1; }
-      - name: Create local Cloudflare Pages config (never commit secrets)
-        working-directory: site
-        env:
-          DBID: ${{ secrets.CLOUDFLARE_D1_DATABASE_ID }}
-        run: |
-          printf 'name = "gestarlink"\ncompatibility_date = "2026-10-24"\npages_build_output_dir = "./public"\n\n[[d1_databases]]\nbinding = "DB"\ndatabase_name = "gestarlink-crm"\ndatabase_id = "%s"\n' "$DBID" > wrangler.toml
-      - name: Apply idempotent D1 schema
-        working-directory: site
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-        run: npx wrangler d1 execute gestarlink-crm --remote --file=./db/schema.sql
-      - name: Deploy to existing Cloudflare Pages project
+          test -n "$TOKEN" || { echo 'Configure CLOUDFLARE_API_TOKEN in GitHub Actions secrets'; exit 1; }
+          test -n "$ACCOUNT" || { echo 'Configure CLOUDFLARE_ACCOUNT_ID in GitHub Actions secrets'; exit 1; }
+          test "${#ADMIN}" -ge 12 || { echo 'Configure GESTARLINK_ADMIN_PASSWORD with at least 12 characters'; exit 1; }
+      - name: Check target Pages project exists
         working-directory: site
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ "${{ inputs.environment }}" = 'production' ]; then
+          curl --fail --silent --show-error --retry 2 \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/pages/projects/gestarlink" \
+            | jq -e '.success == true and .result.name == "gestarlink"'
+      - name: Find or create isolated D1 database
+        id: database
+        working-directory: site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_ENV: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          if [ "$DEPLOY_ENV" = "preview" ]; then DB_NAME="gestarlink-crm-preview"; else DB_NAME="gestarlink-crm"; fi
+          DATABASE_ID="$(npx wrangler d1 list --json | jq -r --arg name "$DB_NAME" '[.[] | select(.name == $name) | .uuid][0] // empty')"
+          if [ -z "$DATABASE_ID" ]; then
+            echo "Creating $DB_NAME"
+            RES="$(curl --fail --silent --show-error \
+              -X POST -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -nc --arg name "$DB_NAME" '{name:$name}')" \
+              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/d1/database")"
+            DATABASE_ID="$(printf '%s' "$RES" | jq -er '.result.uuid')"
+          fi
+          echo "database_id=$DATABASE_ID" >> "$GITHUB_OUTPUT"
+          echo "database_name=$DB_NAME" >> "$GITHUB_OUTPUT"
+      - name: Download original brand asset
+        working-directory: site
+        run: |
+          curl --fail --location --silent --show-error --retry 3 \
+            https://gestarlink.com/logo.png --output public/logo.png
+          test "$(wc -c < public/logo.png)" -ge 1000
+      - name: Configure isolated Pages D1 bindings
+        working-directory: site
+        env:
+          DATABASE_ID: ${{ steps.database.outputs.database_id }}
+          DATABASE_NAME: ${{ steps.database.outputs.database_name }}
+          DEPLOY_ENV: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          printf 'name = "gestarlink"\ncompatibility_date = "2026-10-24"\npages_build_output_dir = "./public"\n\n' > wrangler.toml
+          if [ "$DEPLOY_ENV" = "preview" ]; then
+            printf '[[env.preview.d1_databases]]\nbinding = "DB"\ndatabase_name = "%s"\ndatabase_id = "%s"\n' "$DATABASE_NAME" "$DATABASE_ID" >> wrangler.toml
+          else
+            printf '[[env.production.d1_databases]]\nbinding = "DB"\ndatabase_name = "%s"\ndatabase_id = "%s"\n' "$DATABASE_NAME" "$DATABASE_ID" >> wrangler.toml
+          fi
+      - name: Apply database schema
+        working-directory: site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DATABASE_NAME: ${{ steps.database.outputs.database_name }}
+        run: npx wrangler d1 execute "$DATABASE_NAME" --remote --file=./db/schema.sql
+      - name: Set private chat/admin secrets (never commit them)
+        working-directory: site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          ADMIN_PASSWORD: ${{ secrets.GESTARLINK_ADMIN_PASSWORD }}
+          DEPLOY_ENV: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          trap 'rm -f .cf-secrets.json' EXIT
+          node -e 'const c=require("node:crypto"),fs=require("node:fs");fs.writeFileSync(".cf-secrets.json",JSON.stringify({ADMIN_PASSWORD:process.env.ADMIN_PASSWORD,SESSION_SECRET:c.randomBytes(48).toString("hex")}));'
+          npx wrangler pages secret bulk .cf-secrets.json --project-name gestarlink --env "$DEPLOY_ENV"
+      - name: Deploy only to requested environment
+        working-directory: site
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          DEPLOY_ENV: ${{ inputs.environment }}
+        run: |
+          set -euo pipefail
+          if [ "$DEPLOY_ENV" = "production" ]; then
             npx wrangler pages deploy public --project-name gestarlink --branch main --commit-hash "$GITHUB_SHA"
           else
             npx wrangler pages deploy public --project-name gestarlink --branch preview --commit-hash "$GITHUB_SHA"
           fi
+      - name: Check chat API
+        if: inputs.environment == 'preview'
+        run: |
+          curl --retry 5 --retry-delay 3 --fail --silent --show-error \
+            https://preview.gestarlink.pages.dev/api/health | jq -e '.ok == true'
