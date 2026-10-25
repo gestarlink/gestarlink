@@ -24,6 +24,11 @@ async function withinRateLimit(req,env,kind,limit,windowMs){
  const result=await env.DB.prepare('INSERT INTO api_limits(key,count) VALUES(?,1) ON CONFLICT(key) DO UPDATE SET count=count+1 RETURNING count').bind(key).first();
  return Number(result?.count||0)<=limit;
 }
+async function humanOnline(env){
+ const row=await env.DB.prepare("SELECT value FROM settings WHERE key='human_until'").first();
+ return Number(row?.value||0)>Date.now();
+}
+const conversationSql="SELECT m.id,m.role,CASE WHEN sm.message_id IS NOT NULL THEN 'human' WHEN m.role='assistant' THEN 'virtual' ELSE 'user' END sender,m.body,m.created_at FROM messages m LEFT JOIN staff_messages sm ON sm.message_id=m.id WHERE m.thread_id=? ORDER BY m.rowid DESC LIMIT 100";
 async function settings(env){const rows=await env.DB.prepare('SELECT key,value FROM settings').all();return Object.fromEntries((rows.results||[]).map(x=>[x.key,x.value]));}
 function method(req,m){return req.method===m;}
 async function aiAnswer(env,context,lang){
@@ -78,6 +83,16 @@ async function gestarlinkApi({request:req,env}){
    const lastDay=await env.DB.prepare("SELECT COUNT(*) n FROM events WHERE visitor_id=? AND created_at >= datetime('now','-1 day')").bind(id).first();if((lastDay?.n||0)>=150)return fail('Limite de eventos',429);
    await env.DB.prepare('INSERT INTO events(id,visitor_id,type,path,value) VALUES(?,?,?,?,?)').bind(uuid(),id,b.type,clean(b.path,250),clean(b.value,160)).run();return j({ok:true});
  }
+ if(path==='/api/status'&&method(req,'GET'))return j({human_online:await humanOnline(env),assistant_name:'Zai'});
+ if(path==='/api/thread'&&method(req,'GET')){
+   const id=url.searchParams.get('thread_id'),visitor=url.searchParams.get('visitor_id');
+   if(!validId(id)||!validId(visitor))return fail('Sessão inválida');
+   const thread=await env.DB.prepare('SELECT visitor_id FROM threads WHERE id=?').bind(id).first();
+   if(!thread)return j({messages:[],human_online:await humanOnline(env)});
+   if(thread.visitor_id!==visitor)return fail('Não autorizado',403);
+   const r=await env.DB.prepare(conversationSql).bind(id).all();
+   return j({messages:(r.results||[]).reverse(),human_online:await humanOnline(env)});
+ }
  if(path==='/api/chat'&&method(req,'POST')){
    if(!await withinRateLimit(req,env,'chat',40,3600000))return fail('Limite de acesso atingido.',429);
    const b=await payload(req);if(!validId(b.thread_id)||!validId(b.visitor_id))return fail('Sessão inválida');
@@ -87,11 +102,18 @@ async function gestarlinkApi({request:req,env}){
    await env.DB.prepare('INSERT OR IGNORE INTO threads(id,visitor_id,source,page,lang) VALUES(?,?,?,?,?)').bind(b.thread_id,b.visitor_id,source,clean(b.path,200),lang).run();
    const thread=await env.DB.prepare('SELECT visitor_id FROM threads WHERE id=?').bind(b.thread_id).first();if(thread?.visitor_id!==b.visitor_id)return fail('Sessão inválida',403);
    await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'user',input).run();
-   const rows=await env.DB.prepare('SELECT role,body FROM messages WHERE thread_id=? ORDER BY created_at DESC, rowid DESC LIMIT 12').bind(b.thread_id).all();const context=(rows.results||[]).reverse();
-   const generated=await aiAnswer(env,context,lang);const answer=generated||fallback(input,lang,context);await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'assistant',answer).run();
+   const ownerOnline=await humanOnline(env);
+   let answer=null;
+   if(!ownerOnline){
+     const rows=await env.DB.prepare('SELECT role,body FROM messages WHERE thread_id=? ORDER BY created_at DESC, rowid DESC LIMIT 12').bind(b.thread_id).all();
+     const context=(rows.results||[]).reverse();
+     // Offline Zai is intentionally guided: no paid AI calls or automatic replies while human is online.
+     answer=fallback(input,lang,context);
+     await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'assistant',answer).run();
+   }
    let intent='';if(/site|web|landing/i.test(input))intent='web';else if(/auto|api|integr|ia/i.test(input))intent='automation';else if(/app|saas|sistema/i.test(input))intent='mvp';
    await env.DB.prepare("UPDATE threads SET updated_at=datetime('now'),intent=CASE WHEN ?<>'' THEN ? ELSE intent END WHERE id=?").bind(intent,intent,b.thread_id).run();
-   return j({reply:answer,ai:!!generated,mode:generated?'generative':'guided'});
+   return j({reply:answer,ai:false,mode:ownerOnline?'human':'guided',human_online:ownerOnline});
  }
  if(path==='/api/lead'&&method(req,'POST')){
    if(!await withinRateLimit(req,env,'lead',15,3600000))return fail('Limite de acesso atingido.',429);
@@ -116,6 +138,25 @@ async function gestarlinkApi({request:req,env}){
  }
  if(path.startsWith('/api/admin/')){
    if(!await adminAuthorized(req,env))return fail('Não autorizado.',401);
+   if(path==='/api/admin/presence'&&method(req,'POST')){
+      const b=await payload(req),online=b.online===true,until=online?Date.now()+75000:0;
+      await env.DB.prepare("INSERT INTO settings(key,value) VALUES('human_until',?) ON CONFLICT(key) DO UPDATE SET value=excluded.value").bind(String(until)).run();
+      return j({online,human_until:until});
+   }
+   if(path==='/api/admin/reply'&&method(req,'POST')){
+      const b=await payload(req);
+      if(!validId(b.thread_id))return fail('Conversa inválida');
+      const body=clean(b.message,1400);
+      if(!body)return fail('Mensagem vazia');
+      const thread=await env.DB.prepare('SELECT id FROM threads WHERE id=?').bind(b.thread_id).first();
+      if(!thread)return fail('Conversa não encontrada',404);
+      const id=uuid();
+      await env.DB.prepare("INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)").bind(id,b.thread_id,'assistant',body).run();
+      await env.DB.prepare('INSERT INTO staff_messages(message_id) VALUES(?)').bind(id).run();
+      await env.DB.prepare("UPDATE threads SET updated_at=datetime('now') WHERE id=?").bind(b.thread_id).run();
+      return j({ok:true,id});
+   }
+
    if(path==='/api/admin/logout'&&method(req,'POST'))return j({ok:true},200,{'set-cookie':'gl_admin=; Path=/api/admin; HttpOnly; Secure; SameSite=Strict; Max-Age=0'});
    if(path==='/api/admin/dashboard'&&method(req,'GET')){
      const [visits,events,leads,threads,sources,pages,leadRows,threadRows,visitorRows,s]=await Promise.all([
@@ -126,13 +167,14 @@ async function gestarlinkApi({request:req,env}){
        env.DB.prepare("SELECT source,count(*) n FROM visitors WHERE consent=1 GROUP BY source ORDER BY n DESC LIMIT 10").all(),
        env.DB.prepare("SELECT path,count(*) n FROM events WHERE type='page_view' GROUP BY path ORDER BY n DESC LIMIT 10").all(),
        env.DB.prepare("SELECT l.*,t.source,t.lang FROM leads l LEFT JOIN threads t ON t.id=l.thread_id ORDER BY l.created_at DESC LIMIT 100").all(),
-       env.DB.prepare("SELECT t.*, (SELECT count(*) FROM messages m WHERE m.thread_id=t.id) message_count FROM threads t ORDER BY updated_at DESC LIMIT 100").all(),
+       env.DB.prepare("SELECT t.*, (SELECT count(*) FROM messages m WHERE m.thread_id=t.id) message_count,(SELECT MAX(m.rowid) FROM messages m WHERE m.thread_id=t.id AND m.role='user') last_user_id,(SELECT m.body FROM messages m WHERE m.thread_id=t.id ORDER BY m.rowid DESC LIMIT 1) last_message FROM threads t ORDER BY updated_at DESC LIMIT 100").all(),
        env.DB.prepare("SELECT v.*, (SELECT count(*) FROM threads t WHERE t.visitor_id=v.id) chats FROM visitors v WHERE consent=1 ORDER BY v.last_seen DESC LIMIT 100").all(),settings(env)
      ]);
-     return j({visitors:visits?.n||0,conversations:threads?.n||0,events:events.results||[],lead_counts:leads.results||[],sources:sources.results||[],pages:pages.results||[],leads:leadRows.results||[],threads:threadRows.results||[],visitors_list:visitorRows.results||[],settings:s});
+     const inbound=await env.DB.prepare("SELECT MAX(rowid) AS id FROM messages WHERE role='user'").first();
+     return j({visitors:visits?.n||0,conversations:threads?.n||0,events:events.results||[],lead_counts:leads.results||[],sources:sources.results||[],pages:pages.results||[],leads:leadRows.results||[],threads:threadRows.results||[],visitors_list:visitorRows.results||[],settings:s,human_online:Number(s.human_until||0)>Date.now(),latest_inbound_id:Number(inbound?.id||0)});
    }
    if(path==='/api/admin/visitor'&&method(req,'GET')){const id=url.searchParams.get('id');if(!validId(id))return fail('ID inválido');const r=await env.DB.prepare('SELECT type,path,value,created_at FROM events WHERE visitor_id=? ORDER BY created_at DESC LIMIT 100').bind(id).all();return j({events:r.results||[]});}
-   if(path==='/api/admin/thread'&&method(req,'GET')){const id=url.searchParams.get('id');if(!validId(id))return fail('ID inválido');const r=await env.DB.prepare('SELECT role,body,created_at FROM messages WHERE thread_id=? ORDER BY created_at,rowid LIMIT 200').bind(id).all();return j({messages:r.results||[]});}
+   if(path==='/api/admin/thread'&&method(req,'GET')){const id=url.searchParams.get('id');if(!validId(id))return fail('ID inválido');const r=await env.DB.prepare(conversationSql).bind(id).all();return j({messages:(r.results||[]).reverse()});}
    if(path==='/api/admin/lead'&&method(req,'PATCH')){const b=await payload(req);if(!validId(b.id)||!STAGES.has(b.stage))return fail('Dados inválidos');await env.DB.prepare("UPDATE leads SET stage=?,updated_at=datetime('now') WHERE id=?").bind(b.stage,b.id).run();return j({ok:true});}
    if(path==='/api/admin/settings'&&method(req,'POST')){const b=await payload(req);for(const k of ['whatsapp','contact_email','assistant_name']){if(b[k]!==undefined)await env.DB.prepare('INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value=excluded.value').bind(k,clean(b[k],150)).run();}return j({ok:true});}
  }
