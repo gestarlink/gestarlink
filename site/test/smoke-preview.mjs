@@ -43,7 +43,7 @@ const session={visitor_id:visitor,thread_id:thread,source:'github-preview-smoke'
 const chat=await query('/api/chat',{method:'POST',body:{...session,message:'Quero criar um site para minha empresa',lang:'pt'}});
 assert.equal(chat.response.status,200,'Chat must accept and persist synthetic message');
 assert.equal(typeof chat.json.reply,'string');
-assert.equal(chat.json.ai,true,'Cloudflare Workers AI must respond in preview (not guided fallback)');
+assert.equal(chat.json.mode,'guided','Offline Zai should use guided responses without paid AI');
 assert.ok(chat.json.reply.length>10);
 console.log('Preview chat OK');
 const email='smoke-'+visitor.slice(0,8)+'@example.invalid';
@@ -63,4 +63,28 @@ assert.equal(dash.response.status,200,'Dashboard session must be authenticated')
 assert.ok(Array.isArray(dash.json.leads));
 assert.ok(dash.json.leads.some(l=>l.email===email),'Synthetic lead must be visible in dashboard');
 console.log('Preview private dashboard, session and lead funnel OK');
+// Simulate the owner taking over: Zai must not generate an automatic answer when human service is active.
+const live=await query('/api/admin/presence',{method:'POST',headers:{cookie},body:{online:true}});
+assert.equal(live.response.status,200);
+assert.equal(live.json.online,true);
+try{
+ const message=await query('/api/chat',{method:'POST',body:{...session,message:'Posso conversar com a equipe GestarLink?',lang:'pt'}});
+ assert.equal(message.response.status,200);
+ assert.equal(message.json.mode,'human');
+ assert.equal(message.json.reply,null,'No automatic bot reply when an operator is online');
+ const human=await query('/api/admin/reply',{method:'POST',headers:{cookie},body:{thread_id:thread,message:'Claro! Aqui é a equipe GestarLink. Como posso ajudar?'}});
+ assert.equal(human.response.status,200,'Operator must be able to respond from CRM');
+ const timeline=await query('/api/thread?visitor_id='+visitor+'&thread_id='+thread);
+ assert.equal(timeline.response.status,200);
+ assert.ok(timeline.json.messages.some(m=>m.sender==='human'&&m.body.includes('Aqui é a equipe')),'Visitor must receive operator reply');
+ const unauthorized=await query('/api/admin/reply',{method:'POST',body:{thread_id:thread,message:'unauthorized'}});
+ assert.equal(unauthorized.response.status,401,'Public must not impersonate operator');
+ console.log('Preview human takeover, messaging and security OK');
+}finally{
+ await query('/api/admin/presence',{method:'POST',headers:{cookie},body:{online:false}});
+}
+const virtual=await query('/api/chat',{method:'POST',body:{...session,message:'Obrigado pelo atendimento',lang:'pt'}});
+assert.equal(virtual.response.status,200);
+assert.equal(virtual.json.mode,'guided','Zai must resume virtual service when operator is offline');
+console.log('Preview offline Zai handoff OK');
 console.log('ALL PREVIEW SMOKE TESTS PASSED');
