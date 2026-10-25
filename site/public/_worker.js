@@ -33,7 +33,7 @@ async function aiAnswer(env,context,lang){
  en:'You are Zai, GestarLink’s virtual project assistant. Chat like WhatsApp: warm and concise, one or two short sentences (max 65 words) with at most one useful follow-up question. Answer the question first, remember context, avoid repetitive scripted replies. Services: websites, fixes, apps, SaaS, automation. Starting prices USD: fixes 100, sites 250, automations 300, MVP 600; final quote depends on scope. For humans, refer to "Talk to the team" or "Leave contact" without promising live availability. Never ask sensitive data or pretend to be human.',
  es:'Eres Zai, la asistente virtual de proyectos de GestarLink. Habla como en WhatsApp, cálida y breve, una o dos frases (máx. 65 palabras), como máximo una pregunta útil por respuesta. Contesta primero, recuerda el contexto, evita preguntas repetidas. Servicios: sitios, mejoras, apps, SaaS y automatizaciones. Precios desde: mejoras USD 100, sitios 250, automatizaciones 300, MVP 600, según alcance. Para asistencia humana sugiere "Hablar con el equipo" o "Dejar contacto". Nunca pidas datos sensibles ni finjas ser humana.'
  };
- try {const response=await env.AI.run('@cf/meta/llama-3.1-8b-instruct',{messages:[{role:'system',content:prompts[lang]||prompts.pt},...context.map(m=>({role:m.role==='user'?'user':'assistant',content:m.body}))],max_tokens:145,temperature:.6});return clean(response?.response,600)||null;}catch(e){console.log('AI unavailable',String(e).slice(0,80));return null;}
+ try {const response=await env.AI.run('@cf/meta/llama-3.1-8b-instruct-fp8',{messages:[{role:'system',content:prompts[lang]||prompts.pt},...context.map(m=>({role:m.role==='user'?'user':'assistant',content:m.body}))],max_tokens:145,temperature:.6});return clean(response?.response,600)||null;}catch(e){console.log('AI unavailable',String(e).slice(0,80));return null;}
 }
 function fallback(message,lang,history=[]){
  const m=String(message).toLowerCase(),en=lang==='en',es=lang==='es';
@@ -88,10 +88,10 @@ async function gestarlinkApi({request:req,env}){
    const thread=await env.DB.prepare('SELECT visitor_id FROM threads WHERE id=?').bind(b.thread_id).first();if(thread?.visitor_id!==b.visitor_id)return fail('Sessão inválida',403);
    await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'user',input).run();
    const rows=await env.DB.prepare('SELECT role,body FROM messages WHERE thread_id=? ORDER BY created_at DESC, rowid DESC LIMIT 12').bind(b.thread_id).all();const context=(rows.results||[]).reverse();
-   const answer=(await aiAnswer(env,context,lang))||fallback(input,lang,context);await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'assistant',answer).run();
+   const generated=await aiAnswer(env,context,lang);const answer=generated||fallback(input,lang,context);await env.DB.prepare('INSERT INTO messages(id,thread_id,role,body) VALUES(?,?,?,?)').bind(uuid(),b.thread_id,'assistant',answer).run();
    let intent='';if(/site|web|landing/i.test(input))intent='web';else if(/auto|api|integr|ia/i.test(input))intent='automation';else if(/app|saas|sistema/i.test(input))intent='mvp';
    await env.DB.prepare("UPDATE threads SET updated_at=datetime('now'),intent=CASE WHEN ?<>'' THEN ? ELSE intent END WHERE id=?").bind(intent,intent,b.thread_id).run();
-   return j({reply:answer,ai:!!env.AI});
+   return j({reply:answer,ai:!!generated,mode:generated?'generative':'guided'});
  }
  if(path==='/api/lead'&&method(req,'POST')){
    if(!await withinRateLimit(req,env,'lead',15,3600000))return fail('Limite de acesso atingido.',429);

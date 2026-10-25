@@ -37,6 +37,7 @@ const session={visitor_id:visitor,thread_id:thread,source:'github-preview-smoke'
 const chat=await query('/api/chat',{method:'POST',body:{...session,message:'Quero criar um site para minha empresa',lang:'pt'}});
 assert.equal(chat.response.status,200,'Chat must accept and persist synthetic message');
 assert.equal(typeof chat.json.reply,'string');
+assert.equal(chat.json.ai,true,'Cloudflare Workers AI must respond in preview (not guided fallback)');
 assert.ok(chat.json.reply.length>10);
 console.log('Preview chat OK');
 const email='smoke-'+visitor.slice(0,8)+'@example.invalid';
