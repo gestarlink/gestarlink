@@ -23,3 +23,29 @@
 @keyframes gl-bounce{0%,80%,88%,100%{translate:0 0}84%{translate:0 -10px}}@keyframes gl-blink{0%,42%,45%,100%{transform:scaleY(1)}43%{transform:scaleY(.1)}}@keyframes gl-rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 @media(max-width:600px){.gl-float{bottom:19px;right:17px}.gl-fab{height:60px;width:60px;border-radius:19px}.gl-invite{right:70px;width:211px;font-size:12px}.gl-widget{right:10px;bottom:85px;width:calc(100vw - 20px);max-height:calc(100dvh - 112px)}.gl-consent{left:9px;right:9px;bottom:90px;flex-wrap:wrap;gap:6px}.gl-consent div{width:100%}.gl-consent button{flex:1}.contact-callout{padding:28px}}
 @media(prefers-reduced-motion:reduce){.gl-fab,.robot-eye,.gl-invite{animation:none}}
+
+/* Zai messenger-style floating chat */
+.gl-widget{height:min(665px,calc(100dvh - 122px));max-height:none;background:#0b1424;width:min(412px,calc(100vw - 20px))}
+.glw-top{min-height:68px;gap:10px;padding:11px 13px}
+.glw-avatar{width:42px;height:42px;border-radius:50%;font-size:22px}
+.glw-top #glw-new{border:0;border-radius:9px;background:#ffffff16;color:#d7e7fb;cursor:pointer;font-size:23px;width:34px;height:34px}
+.glw-messages{max-height:none;flex:1;background:radial-gradient(circle at top right,#1e2b4d88,transparent 55%),#0f1729;gap:11px}
+.glw-message{display:flex;align-items:flex-end;flex-direction:column;gap:3px;max-width:90%;align-self:flex-start}
+.glw-message.user{align-self:flex-end}
+.glw-message .glw-bubble{max-width:100%;font-size:13px;line-height:1.53;white-space:pre-wrap;overflow-wrap:anywhere;background:#22324c;padding:10px 13px;border-radius:16px 16px 16px 5px}
+.glw-message.user .glw-bubble{border-radius:16px 16px 5px 16px;background:linear-gradient(135deg,#057aa8,#5249ba);color:#fff}
+.glw-message.system .glw-bubble{font-size:12px;background:#2b3652;color:#c6e5f8}
+.glw-time{font-size:10px;color:#93a7c5;padding:0 4px}
+.glw-typing{display:flex;align-self:flex-start;gap:5px;background:#22324c;border-radius:13px;padding:13px 15px}
+.glw-typing span{width:6px;height:6px;border-radius:50%;background:#94c8f0;animation:zai-dot .8s infinite alternate}
+.glw-typing span:nth-child(2){animation-delay:.16s}.glw-typing span:nth-child(3){animation-delay:.32s}
+@keyframes zai-dot{to{opacity:.25;transform:translateY(2px)}}
+.glw-quick{overflow-x:auto;flex-wrap:nowrap;padding:9px 12px}.glw-quick:empty{display:none}
+.glw-quick button{white-space:nowrap;border-radius:24px;padding:9px 11px;font-size:12px}
+.glw-form{align-items:flex-end;padding:10px 12px;background:#111e32;border-top:1px solid #2b3850}
+.glw-form textarea{flex:1;min-width:0;box-sizing:border-box;min-height:43px;max-height:105px;resize:none;border:1px solid #385070;border-radius:21px;background:#192b43;color:#fff;font:inherit;font-size:16px;line-height:1.4;padding:11px 14px;overflow-y:auto}
+.glw-form button{width:43px;height:43px;border-radius:50%;padding:0;flex-shrink:0;display:grid;place-items:center}
+.glw-actions,.glw-footnote{background:#111e32}
+.glw-lead{position:absolute;bottom:93px;left:9px;right:9px;z-index:5;max-height:70%;border:1px solid #426084;border-radius:15px;box-shadow:0 17px 42px #000c}
+@media(max-width:600px){.gl-widget{bottom:82px;right:8px;width:calc(100vw - 16px);height:calc(100dvh - 97px)}.glw-messages{max-height:none}}
+@media(prefers-reduced-motion:reduce){.glw-typing span{animation:none}}
