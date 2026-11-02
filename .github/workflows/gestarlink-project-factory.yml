@@ -1,0 +1,80 @@
+name: Central GestarLink - Projetos
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  factory:
+    # Executa somente solicitações abertas pelo proprietário exato da conta.
+    if: github.event.issue.user.id == 84834803 && startsWith(github.event.issue.title, '[factory] ')
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    concurrency:
+      group: gestarlink-project-factory
+      cancel-in-progress: false
+    steps:
+      - name: Obter automação aprovada
+        uses: actions/checkout@v4
+
+      - name: Validar solicitação
+        id: validate
+        env:
+          FACTORY_REQUEST: ${{ github.event.issue.body }}
+        run: python3 ops/project-factory/validate.py
+
+      - name: Verificar credenciais seguras
+        env:
+          FACTORY_GH: ${{ secrets.GH_FACTORY_TOKEN }}
+          FACTORY_CF: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          FACTORY_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          test -n "$FACTORY_GH" || { echo "Falta GH_FACTORY_TOKEN"; exit 1; }
+          test -n "$FACTORY_CF" || { echo "Falta CLOUDFLARE_API_TOKEN"; exit 1; }
+          test -n "$FACTORY_ACCOUNT" || { echo "Falta CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+
+      - name: Criar repositório e projeto Cloudflare
+        if: steps.validate.outputs.operation == 'create'
+        env:
+          GH_TOKEN: ${{ secrets.GH_FACTORY_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash ops/project-factory/factory.sh create
+
+      - name: Obter código do repositório
+        if: steps.validate.outputs.operation == 'deploy'
+        env:
+          GH_TOKEN: ${{ secrets.GH_FACTORY_TOKEN }}
+        run: bash ops/project-factory/factory.sh clone
+
+      - name: Instalar Node para projetos web
+        if: steps.validate.outputs.operation == 'deploy'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Preparar pasta de publicação sem credenciais
+        if: steps.validate.outputs.operation == 'deploy'
+        run: bash ops/project-factory/factory.sh build
+
+      - name: Publicar na Cloudflare
+        if: steps.validate.outputs.operation == 'deploy'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash ops/project-factory/factory.sh deploy
+
+      - name: Registrar resultado na solicitação
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [[ ! -f .factory-result.md ]]; then
+            printf '⚠️ Automação terminou com status **%s**. Consulte os logs da aba Actions. Nenhum domínio personalizado foi alterado.\n' "$JOB_STATUS" > .factory-result.md
+          fi
+          gh issue comment "$ISSUE_NUMBER" --body-file .factory-result.md
